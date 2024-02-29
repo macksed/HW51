@@ -1,0 +1,172 @@
+---
+title: "Homework 5"
+author: "Arjun Yenamandra - SDS 315 UT Austin"
+
+
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+```{r global_options, echo=FALSE}
+knitr::opts_chunk$set(fig.height=4, fig.width=7, warning=FALSE, tidy=TRUE, tidy.opts=list(width.cutoff=60), warning = FALSE, message = FALSE)
+```
+eid: ay7654
+github: [https://github.com/macksed/HW51](https://github.com/macksed/HW51)
+```{r, echo=FALSE, results='hide'}
+library(tidyverse)
+library(ggplot2)
+library(mosaic)
+```
+
+# **Question 1**
+
+Null hypothesis:
+Over the long run, securities trades from Iron Bank are flagged at the same 2.4% baseline rate as that of other banks/traders.
+```{r echo=FALSE}
+library(mosaic)
+library(tidyverse)
+
+total_trades <- 2021
+flaggedtrade <- 70
+flag_rate <- 0.024
+#sim
+tradesim <- do(100000)*nflip(n=2021, prob=flag_rate)
+#pvalue
+p_value <- sum(tradesim >= flaggedtrade)/100000
+```
+We can use a Monte Carlo simulation to understand this flagging rate over numerous samples, and form a p value from the result of the simulation. 
+
+As we perform our simulation, we can plot the probability distribution:
+```{r echo=FALSE}
+# Plot the distribution of flagged trades under null 
+tradesim %>%
+  ggplot(aes(x = nflip)) +
+  geom_histogram(binwidth = 1, fill = "red", color = "black") +
+  labs(title = "Distribution of Flagged Trades Under the Null Hypothesis",
+       x = "Number of Flagged Trades",
+       y = "Frequency") 
+```
+
+The p-value is: `r p_value`
+As our p value is equivalent to `r 100*p_value`%, this indicates the probability of having observed flagged trades over 70, given the baseline that Iron Bank trades are flagged at 2.4%. 
+Given that this p value is quite small, we may assume that the given data is quite improbable under the null hypothesis, indicating that Iron Bank's flagged trades are much deviated from the baseline 2.4%, suggesting the null may not be plausible.
+
+
+```{r echo=FALSE}
+```
+
+```{r echo=FALSE}
+```
+
+
+
+# **Question 2**
+Null hypothesis: Restaurants in the city are cited for health code violations at the same 3% rate.
+We can solve a p-value for the health code violations from inspections. If we use 100,000 MC simulations, we can see the proportion to which Gourmet Bites violations are equal to or more extreme than 8, compared to the distribution of simulations where the regular violate rate is 3%.
+
+
+```{r echo=FALSE}
+inspections <- 50
+violations_observed <- 8
+violation_rate <- 0.03
+```
+
+```{r echo=FALSE}
+violsim <- do(100000) * nflip(n=inspections, prob=violation_rate)
+```
+
+```{r echo=FALSE}
+p_value <- sum(violsim >= violations_observed)/100000
+```
+Here is our plot for the distribution of violations assuming the null is true.
+```{r echo=FALSE}
+ggplot(violsim, aes(x = nflip)) +
+  geom_histogram(binwidth = 1, fill = "blue", color = "black") +
+  labs(title = "Distribution of Health Code Violations Under Null Hyp.",
+       x = "Health Code Violations",
+       y = "Freq.") 
+```
+
+
+
+Our p-value is `r p_value`. This value is incredibly low, indicating drastically below even a .1% proportion of the distribution. Since it is so low, we may assume that the violations for Gourmet Bites is far from the baseline 3%. This indicates that the null hypothesis is implausible.
+
+
+
+# **Question 3**
+```{r echo=FALSE}
+sentences <- readLines("brown_sentences.txt")
+clean_sentence = function(sentence) {
+  gsub("[^A-Za-z]", "", sentence) %>%
+  toupper()
+}
+```
+
+```{r echo=FALSE}
+letter_frequencies = read.csv("letter_frequencies.csv")
+
+#using function from Caesar file
+calculate_chi_squared = function(sentence, freq_table) {
+  
+  freq_table$Probability = freq_table$Probability / sum(freq_table$Probability)
+  
+  # Remove non-letters and convert to uppercase
+  clean_sentence = gsub("[^A-Za-z]", "", sentence)
+  clean_sentence = toupper(clean_sentence)
+  
+  # Count the occurrences of each letter in the sentence
+  observed_counts = table(factor(strsplit(clean_sentence, "")[[1]], levels = freq_table$Letter))
+  
+  # Calculate expected counts
+  total_letters = sum(observed_counts)
+  expected_counts = total_letters * freq_table$Probability
+  
+  # Chi-squared statistic
+  chi_squared_stat = sum((observed_counts - expected_counts)^2 / expected_counts)
+  
+  return(chi_squared_stat)
+}
+
+```
+
+```{r echo=FALSE}
+chi_squared_statistic <- sapply(sentences, function(sentence) {
+  clean_sentence <- clean_sentence(sentence)
+  calculate_chi_squared(clean_sentence, letter_frequencies)
+})
+hist(chi_squared_statistic)
+```
+This is our null distribution of chi-squared values from the Brown University sentences.
+
+
+```{r echo=FALSE}
+sentences <- c(
+  "She opened the book and started to read the first chapter, eagerly anticipating what might come next.",
+  "Despite the heavy rain, they decided to go for a long walk in the park, crossing the main avenue by the fountain in the center.",
+  "The museum’s new exhibit features ancient artifacts from various civilizations around the world.",
+  "He carefully examined the document, looking for any clues that might help solve the mystery.",
+  "The students gathered in the auditorium to listen to the guest speaker’s inspiring lecture.",
+  "Feeling vexed after an arduous and zany day at work, she hoped for a peaceful and quiet evening at home, cozying up after a quick dinner with some TV, or maybe a book on her upcoming visit to Auckland.",
+  "The chef demonstrated how to prepare a delicious meal using only locally sourced ingredients, focusing mainly on some excellent dinner recipes from Spain.",
+  "They watched the sunset from the hilltop, marveling at the beautiful array of colors in the sky.",
+  "The committee reviewed the proposal and provided many points of useful feedback to improve the project’s effectiveness.",
+  "Despite the challenges faced during the project, the team worked tirelessly to ensure its successful completion, resulting in a product that exceeded everyone’s expectations."
+)
+chi_squared_values <- sapply(sentences, function(x) {calculate_chi_squared(x, letter_frequencies)})
+
+
+```
+
+```{r echo=FALSE}
+p_values <- sapply(chi_squared_values, function(x) {
+  sum(chi_squared_statistic >= x)/56745
+})
+p_values <- tibble(sentence=1:10,p_values=round(p_values,3))
+p_values
+
+```
+
+This is our table with the p values from each sentence. Sentence 6 is the LLM watermarked sentence, with a p value almost 10 times smaller than the next smallest p value. The p-value indicates that the chi-squared from 6 was much more extreme than all the other sentences, indicating its letter distribution was much more extreme than the other sentences.
+
